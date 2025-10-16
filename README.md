@@ -308,7 +308,7 @@ npx finance-mcp
 
 #### 方法2：通过Smithery安装
 ```bash
-npx -y @smithery/cli install @guangxiangdebizi/FinanceMCP --client claude
+npx -y @smithery/cli install @guangxiangdebizi/FinanceMCP
 ```
 
 > **💡 提示**：FinanceMCP 支持两种部署模式
