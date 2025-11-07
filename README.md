@@ -1,4 +1,5 @@
 [![English](https://img.shields.io/badge/English-README_EN.md-blue?logo=github)](README_EN.md)
+[![smithery badge](https://smithery.ai/badge/@Xxx00xxX33/financemcp)](https://smithery.ai/server/@Xxx00xxX33/financemcp)
 
 # FinanceMCP - 专业金融数据MCP服务器 🚀
 
@@ -497,7 +498,7 @@ npm run start:http
 - **🪙 加密分钟线**：兼容 `BTCUSDT`/`BTC-USDT`/`BTC/USDT`/`coinid.USDT`；频率映射 `1MIN/5MIN/15MIN/30MIN/60MIN → 1m/5m/15m/30m/1h`
 - **📦 自动分页**：Binance 单次最多1000根K线，自动分页直至覆盖完整区间
 - **🧭 智能扩展取数（日线）**：请求技术指标时自动扩展开始日期，保证计算窗口足够
-- **🧩 友好错误提示**：无效交易对返回 400 时，明确提示“该币对在 Binance 不存在或已下线”
+- **🧩 友好错误提示**：无效交易对返回 400 时，明确提示"该币对在 Binance 不存在或已下线"
 - **📈 A股前复权（日线）**：自动应用前复权（基于最新交易日因子）
 
 其他能力保持不变：Web在线体验、NPM 包、Streamable HTTP、稳定会话管理等。
