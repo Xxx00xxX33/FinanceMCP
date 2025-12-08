@@ -6,8 +6,8 @@ import { runWithRequestContext } from "./config.js";
 
 // 工具导入
 import { financeNews } from "./tools/financeNews.js";
-im
-  // -------------------------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------------------------
 // Response normalization helpers
 //
 // The MCP protocol is consumed by some adapters that are sensitive to the ordering of keys
@@ -44,7 +44,7 @@ function normalizeContentBlock(block: unknown): unknown {
  * @param result The raw result object returned by a tool.
  * @returns A new result object with normalized content and raw_text when applicable.
  */
-nfunction normalizeResult(result: any): any {
+function normalizeResult(result: any): any {
   if (!result || typeof result !== 'object') return result;
   const normalized = Array.isArray(result) ? [...result] : { ...result };
 
@@ -60,7 +60,7 @@ nfunction normalizeResult(result: any): any {
   return normalized;
 }
 
-port { stockData } from "./tools/stockData.js";
+import { stockData } from "./tools/stockData.js";
 import { stockDataMinutes } from "./tools/stockDataMinutes.js";
 import { indexData } from "./tools/indexData.js";
 import { macroEcon } from "./tools/macroEcon.js";
