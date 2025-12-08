@@ -5,6 +5,57 @@ import { randomUUID } from "node:crypto";
 import { runWithRequestContext } from "./config.js";
 // 工具导入
 import { financeNews } from "./tools/financeNews.js";
+// -------------------------------------------------------------------------------------------
+// Response normalization helpers
+//
+// The MCP protocol is consumed by some adapters that are sensitive to the ordering of keys
+// within returned objects. In particular, certain clients may incorrectly drop content
+// blocks when the `text` field appears before `type` in a JSON object. Additionally,
+// some intermediate layers may reorder keys or strip unknown properties. To avoid loss
+// of information, we explicitly normalize the structure of tool results before sending
+// them over the wire. This helper rewrites each content block to ensure that the
+// `type` field precedes `text` and also exposes a `raw_text` property on the root
+// result containing the first text content. If no text block exists, the original
+// result is returned untouched.
+/**
+ * Normalize an individual content block by ordering its keys and returning a new object.
+ *
+ * @param block A single content block from a tool result.
+ * @returns A new content block with keys ordered as { type, text } when applicable.
+ */
+function normalizeContentBlock(block) {
+    if (block && typeof block === 'object' && !Array.isArray(block)) {
+        const entry = block;
+        if ('type' in entry && 'text' in entry) {
+            // Preserve type/text but enforce ordering. Use explicit properties to avoid key reordering.
+            return { type: entry.type, text: entry.text };
+        }
+    }
+    return block;
+}
+/**
+ * Normalize the entire result returned from a tool. This ensures any content array has
+ * properly ordered blocks and surfaces a `raw_text` string for clients that cannot
+ * reliably parse nested content. The function does not mutate the original result.
+ *
+ * @param result The raw result object returned by a tool.
+ * @returns A new result object with normalized content and raw_text when applicable.
+ */
+function normalizeResult(result) {
+    if (!result || typeof result !== 'object')
+        return result;
+    const normalized = Array.isArray(result) ? [...result] : { ...result };
+    // If the result contains a content array, normalize each block.
+    if (Array.isArray(normalized.content)) {
+        normalized.content = normalized.content.map((item) => normalizeContentBlock(item));
+        // Expose raw_text for downstream consumers: take the first text-type block if available.
+        const firstText = normalized.content.find((item) => item && item.type === 'text' && typeof item.text === 'string');
+        if (firstText && typeof firstText.text === 'string') {
+            normalized.raw_text = firstText.text;
+        }
+    }
+    return normalized;
+}
 import { stockData } from "./tools/stockData.js";
 import { stockDataMinutes } from "./tools/stockDataMinutes.js";
 import { indexData } from "./tools/indexData.js";
@@ -336,7 +387,7 @@ app.post('/mcp', async (req, res) => {
             });
             const duration = Date.now() - startTime;
             console.log(`✅ [MCP-tools/call] Tool: ${name} completed in ${duration}ms`);
-            return res.json({ jsonrpc: '2.0', result, id: body.id });
+            return res.json({ jsonrpc: '2.0', result: normalizeResult(result), id: body.id });
         }
         catch (error) {
             const duration = Date.now() - startTime;

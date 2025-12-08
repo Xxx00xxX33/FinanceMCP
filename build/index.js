@@ -20,6 +20,48 @@ import { companyPerformance_us } from "./tools/companyPerformance_us.js";
 import { csiIndexConstituents } from "./tools/csiIndexConstituents.js";
 import { dragonTigerInst } from "./tools/dragonTigerInst.js";
 import { hotNews } from "./tools/hotNews.js";
+// -------------------------------------------------------------------------------------------
+// Response normalization helpers
+//
+// The MCP protocol is consumed by some adapters that are sensitive to the ordering of keys
+// within returned objects. In particular, certain clients may incorrectly drop content
+// blocks when the `text` field appears before `type` in a JSON object. To ensure
+// compatibility, we explicitly normalize the structure of tool results before returning
+// them. This helper rewrites each content block to ensure that the `type` field precedes
+// `text`.
+/**
+ * Normalize an individual content block by ordering its keys and returning a new object.
+ *
+ * @param block A single content block from a tool result.
+ * @returns A new content block with keys ordered as { type, text } when applicable.
+ */
+function normalizeContentBlock(block) {
+    if (block && typeof block === 'object' && !Array.isArray(block)) {
+        const entry = block;
+        if ('type' in entry && 'text' in entry) {
+            // Preserve type/text but enforce ordering. Use explicit properties to avoid key reordering.
+            return { type: entry.type, text: entry.text };
+        }
+    }
+    return block;
+}
+/**
+ * Normalize the entire result returned from a tool. This ensures any content array has
+ * properly ordered blocks. The function does not mutate the original result.
+ *
+ * @param result The raw result object returned by a tool.
+ * @returns A new result object with normalized content when applicable.
+ */
+function normalizeResult(result) {
+    if (!result || typeof result !== 'object')
+        return result;
+    const normalized = Array.isArray(result) ? [...result] : { ...result };
+    // If the result contains a content array, normalize each block.
+    if (Array.isArray(normalized.content)) {
+        normalized.content = normalized.content.map((item) => normalizeContentBlock(item));
+    }
+    return normalized;
+}
 // 🕐 时间戳工具定义
 const timestampTool = {
     name: "current_timestamp",
@@ -203,11 +245,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (request.params.name) {
         case "current_timestamp": {
             const format = request.params.arguments?.format ? String(request.params.arguments.format) : undefined;
-            return await timestampTool.run({ format });
+            return normalizeResult(await timestampTool.run({ format }));
         }
         case "finance_news": {
             const query = String(request.params.arguments?.query);
-            return await financeNews.run({ query });
+            return normalizeResult(await financeNews.run({ query }));
         }
         case "stock_data": {
             const code = String(request.params.arguments?.code);
@@ -215,7 +257,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const start_date = request.params.arguments?.start_date ? String(request.params.arguments.start_date) : undefined;
             const end_date = request.params.arguments?.end_date ? String(request.params.arguments.end_date) : undefined;
             const indicators = request.params.arguments?.indicators ? String(request.params.arguments.indicators) : undefined;
-            return await stockData.run({ code, market_type, start_date, end_date, indicators });
+            return normalizeResult(await stockData.run({ code, market_type, start_date, end_date, indicators }));
         }
         case "stock_data_minutes": {
             const code = String(request.params.arguments?.code);
@@ -223,19 +265,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const start_datetime = String(request.params.arguments?.start_datetime);
             const end_datetime = String(request.params.arguments?.end_datetime);
             const freq = String(request.params.arguments?.freq);
-            return await stockDataMinutes.run({ code, market_type, start_datetime, end_datetime, freq });
+            return normalizeResult(await stockDataMinutes.run({ code, market_type, start_datetime, end_datetime, freq }));
         }
         case "index_data": {
             const code = String(request.params.arguments?.code);
             const start_date = request.params.arguments?.start_date ? String(request.params.arguments.start_date) : undefined;
             const end_date = request.params.arguments?.end_date ? String(request.params.arguments.end_date) : undefined;
-            return await indexData.run({ code, start_date, end_date });
+            return normalizeResult(await indexData.run({ code, start_date, end_date }));
         }
         case "macro_econ": {
             const indicator = String(request.params.arguments?.indicator);
             const start_date = request.params.arguments?.start_date ? String(request.params.arguments.start_date) : undefined;
             const end_date = request.params.arguments?.end_date ? String(request.params.arguments.end_date) : undefined;
-            return await macroEcon.run({ indicator, start_date, end_date });
+            return normalizeResult(await macroEcon.run({ indicator, start_date, end_date }));
         }
         case "company_performance": {
             const ts_code = String(request.params.arguments?.ts_code);
@@ -243,7 +285,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const start_date = String(request.params.arguments?.start_date);
             const end_date = String(request.params.arguments?.end_date);
             const period = request.params.arguments?.period ? String(request.params.arguments.period) : undefined;
-            return await companyPerformance.run({ ts_code, data_type, start_date, end_date, period });
+            return normalizeResult(await companyPerformance.run({ ts_code, data_type, start_date, end_date, period }));
         }
         case "fund_data": {
             const ts_code = request.params.arguments?.ts_code ? String(request.params.arguments.ts_code) : undefined;
@@ -251,25 +293,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const start_date = request.params.arguments?.start_date ? String(request.params.arguments.start_date) : undefined;
             const end_date = request.params.arguments?.end_date ? String(request.params.arguments.end_date) : undefined;
             const period = request.params.arguments?.period ? String(request.params.arguments.period) : undefined;
-            return await fundData.run({ ts_code, data_type, start_date, end_date, period });
+            return normalizeResult(await fundData.run({ ts_code, data_type, start_date, end_date, period }));
         }
         case "fund_manager_by_name": {
             const name = String(request.params.arguments?.name);
             const ann_date = request.params.arguments?.ann_date ? String(request.params.arguments.ann_date) : undefined;
-            return await runFundManagerByName({ name, ann_date });
+            return normalizeResult(await runFundManagerByName({ name, ann_date }));
         }
         case "convertible_bond": {
             const ts_code = request.params.arguments?.ts_code ? String(request.params.arguments.ts_code) : undefined;
             const data_type = String(request.params.arguments?.data_type);
             const start_date = request.params.arguments?.start_date ? String(request.params.arguments.start_date) : undefined;
             const end_date = request.params.arguments?.end_date ? String(request.params.arguments.end_date) : undefined;
-            return await convertibleBond.run({ ts_code, data_type, start_date, end_date });
+            return normalizeResult(await convertibleBond.run({ ts_code, data_type, start_date, end_date }));
         }
         case "block_trade": {
             const code = request.params.arguments?.code ? String(request.params.arguments.code) : undefined;
             const start_date = String(request.params.arguments?.start_date);
             const end_date = String(request.params.arguments?.end_date);
-            return await blockTrade.run({ code, start_date, end_date });
+            return normalizeResult(await blockTrade.run({ code, start_date, end_date }));
         }
         case "money_flow": {
             const query_type = request.params.arguments?.query_type ? String(request.params.arguments.query_type) : undefined;
@@ -278,7 +320,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const end_date = String(request.params.arguments?.end_date);
             const content_type = request.params.arguments?.content_type ? String(request.params.arguments.content_type) : undefined;
             const trade_date = request.params.arguments?.trade_date ? String(request.params.arguments.trade_date) : undefined;
-            return await moneyFlow.run({ query_type, ts_code, start_date, end_date, content_type, trade_date });
+            return normalizeResult(await moneyFlow.run({ query_type, ts_code, start_date, end_date, content_type, trade_date }));
         }
         case "margin_trade": {
             const data_type = String(request.params.arguments?.data_type);
@@ -286,7 +328,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const start_date = String(request.params.arguments?.start_date);
             const end_date = request.params.arguments?.end_date ? String(request.params.arguments.end_date) : undefined;
             const exchange = request.params.arguments?.exchange ? String(request.params.arguments.exchange) : undefined;
-            return await marginTrade.run({ data_type, ts_code, start_date, end_date, exchange });
+            return normalizeResult(await marginTrade.run({ data_type, ts_code, start_date, end_date, exchange }));
         }
         case "company_performance_hk": {
             const ts_code = String(request.params.arguments?.ts_code);
@@ -295,7 +337,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const end_date = String(request.params.arguments?.end_date);
             const period = request.params.arguments?.period ? String(request.params.arguments.period) : undefined;
             const ind_name = request.params.arguments?.ind_name ? String(request.params.arguments.ind_name) : undefined;
-            return await companyPerformance_hk.run({ ts_code, data_type, start_date, end_date, period, ind_name });
+            return normalizeResult(await companyPerformance_hk.run({ ts_code, data_type, start_date, end_date, period, ind_name }));
         }
         case "company_performance_us": {
             const ts_code = String(request.params.arguments?.ts_code);
@@ -303,21 +345,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const start_date = String(request.params.arguments?.start_date);
             const end_date = String(request.params.arguments?.end_date);
             const period = request.params.arguments?.period ? String(request.params.arguments.period) : undefined;
-            return await companyPerformance_us.run({ ts_code, data_type, start_date, end_date, period });
+            return normalizeResult(await companyPerformance_us.run({ ts_code, data_type, start_date, end_date, period }));
         }
         case "csi_index_constituents": {
             const index_code = String(request.params.arguments?.index_code);
             const start_date = String(request.params.arguments?.start_date);
             const end_date = String(request.params.arguments?.end_date);
-            return await csiIndexConstituents.run({ index_code, start_date, end_date });
+            return normalizeResult(await csiIndexConstituents.run({ index_code, start_date, end_date }));
         }
         case "dragon_tiger_inst": {
             const trade_date = String(request.params.arguments?.trade_date);
             const ts_code = request.params.arguments?.ts_code ? String(request.params.arguments.ts_code) : undefined;
-            return await dragonTigerInst.run({ trade_date, ts_code });
+            return normalizeResult(await dragonTigerInst.run({ trade_date, ts_code }));
         }
         case "hot_news_7x24": {
-            return await hotNews.run({});
+            return normalizeResult(await hotNews.run({}));
         }
         default:
             throw new Error("Unknown tool");
