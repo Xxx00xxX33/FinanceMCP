@@ -6,6 +6,8 @@
 
 **Professional financial data server based on MCP protocol, integrating Tushare API to provide real-time financial data and technical indicator analysis for Claude and other AI assistants.**
 
+> 📅 **Last Updated**: December 9, 2025 07:10:01 Tuesday (UTC+8)
+
 ## 📑 Table of Contents
 
 - [🌟 Public Cloud Service (Free)](#-public-cloud-service-free)
